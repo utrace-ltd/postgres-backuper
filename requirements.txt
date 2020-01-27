@@ -1,0 +1,5 @@
+boto
+hvac
+s3transfer
+vault-cli==0.12.0
+vault-psycopg2==0.1.11
