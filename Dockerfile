@@ -5,11 +5,11 @@ WORKDIR /opt/python_backuper
 RUN python -m pip install --upgrade pip
 RUN apt update && apt install -y postgresql-client
 
-COPY ../requirements.txt ./
+COPY requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY ../list.py ./
+COPY python_pg_backuper.py ./
 
 ENV VAULT_ADDR='https://vault.example.com'
 ENV VAULT_SECRET='yor_vault_secret'
@@ -20,4 +20,4 @@ ENV AWS_BUCKET_NAME='your_aws_bucket_name'
 ENV AWS_STORAGE_URL='s3-storage.example.com'
 ENV AWS_AUTH_REGION_NAME='example-region'
 
-CMD [ "python", "list.py" ]
+CMD [ "python", "python_pg_backuper.py" ]
