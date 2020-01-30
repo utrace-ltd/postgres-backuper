@@ -52,15 +52,15 @@ k = Key(bucket)
 
 # Logging params
 
-logging.basicConfig(format=u'%(filename)s %(levelname)-8s [%(asctime)s]  %(message)s',
-                    level=logging.WARNING)
+logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
+                    level=logging.INFO)
 
 connect_true = client.is_authenticated()
 
 if connect_true:
-    logging.warning("Info: Connect: True. Client authenticated.")
+    logging.info("Connected. Client authenticated.")
 else:
-    logging.warning("Error: Connect: False. Client not authenticated.")
+    logging.warning("Not connected or client not authenticated.")
 
 secrets_engines_list = client.sys.list_mounted_secrets_engines()
 secret_list = sorted(secrets_engines_list.keys())
@@ -88,18 +88,23 @@ for kv in secret_list:
                     path=PATH_TO_SECRETS + env_name + '/database',
                     mount_point=customer_name + '/'
                 )
+
+                key_exists = '.skip_database_backup' in vault_secret['data']['data']
+
                 u = vault_secret['data']['data']['connect_url']
 
                 rgx = re.compile(
                     'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require')
                 connect_url = rgx.sub('', u)
-                db_connects_array.append(
-                    {'customer_name': customer_name, 'env_name': env_name, 'connect_url': connect_url})
+
+                if not key_exists:
+                    db_connects_array.append(
+                        {'customer_name': customer_name, 'env_name': env_name, 'connect_url': connect_url})
             except:
-                logging.warning("Error: Database param not found for " +
+                logging.warning("Database param not found for " +
                                 customer_name + " in environment " + env_name)
     except:
-        logging.warning("Error: Path not found " + customer_name)
+        logging.warning("Path not found " + customer_name)
 
 i = len(db_connects_array)
 
@@ -118,8 +123,8 @@ for i in range(0, i):
         BACKUP_PATH = r'/tmp'
         destination = r'%s/%s' % (BACKUP_PATH, str(filename))
 
-        logging.warning('Info: Starting backup ' +
-                        customer_name1 + "-" + env_name1 + "/" + filename)
+        logging.info('Starting backup for ' +
+                     customer_name1 + "-" + env_name1 + "/" + filename)
         ps = subprocess.Popen(
             ['pg_dump', database_uri, '--compress=9',
              '-c', '-O', '-f', destination],
@@ -130,6 +135,8 @@ for i in range(0, i):
         k.key = (customer_name1 + "/" + env_name1 + "/" + filename)
         k.set_contents_from_filename(destination)
         os.remove(destination)
-
+        logging.info('Backup completed for ' +
+                     customer_name1 + "-" + env_name1)
     except:
-        logging.warning('Error: Exception. Backup or uploading')
+        logging.warning('Exception. Backup skipped')
+logging.info('Backups completed')
