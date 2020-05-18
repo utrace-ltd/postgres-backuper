@@ -2,17 +2,19 @@
 
 import logging
 import os
+import re
 import subprocess
 from datetime import date
-import re
+
 import hvac
-from boto.s3.key import Key
 from boto.s3.connection import S3Connection
+from boto.s3.key import Key
 
 # Vault variables
 VAULT_ADDR = os.environ.get("VAULT_ADDR")
 VAULT_SECRET = os.environ.get("VAULT_SECRET")
 PATH_TO_SECRETS = os.environ.get('PATH_TO_SECRETS')
+PATH_TO_SECRETS2 = os.environ.get('PATH_TO_SECRETS2')
 
 # Yandex S3 settings.
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -26,6 +28,8 @@ client = hvac.Client(
     url=VAULT_ADDR,
     token=VAULT_SECRET
 )
+
+print()
 
 try:
     client.renew_token(increment=60 * 60 * 72)
@@ -94,7 +98,8 @@ for kv in secret_list:
                 u = vault_secret['data']['data']['connect_url']
 
                 rgx = re.compile(
-                    'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require')
+                    'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require|&targetServerType=master'
+                )
                 connect_url = rgx.sub('', u)
 
                 if not key_exists:
@@ -105,13 +110,42 @@ for kv in secret_list:
                                 customer_name + " in environment " + env_name)
     except:
         logging.warning("Path not found " + customer_name)
+    try:
+        env_list2 = client.secrets.kv.v2.list_secrets(
+            path=PATH_TO_SECRETS2, mount_point=customer_name + '/')
+        for env_name in env_list2['data']['keys']:
+            try:
+                vault_secret2 = client.secrets.kv.v2.read_secret_version(
+                    path=PATH_TO_SECRETS2 + env_name + '/database',
+                    mount_point=customer_name + '/'
+                )
 
+                key_exists = '.skip_database_backup' in vault_secret2['data']['data']
+
+                ur = vault_secret2['data']['data']['connect_url']
+
+                rgx = re.compile(
+                    'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require|&targetServerType=master'
+                )
+                connect_url = rgx.sub('', ur)
+
+                if not key_exists:
+                    db_connects_array.append(
+                        {'customer_name': customer_name, 'env_name': env_name, 'connect_url': connect_url})
+            except:
+                logging.warning("Database param not found for " +
+                                customer_name + " in environment " + env_name)
+    except:
+        logging.warning("Path not found " + customer_name)
+print(db_connects_array)
 i = len(db_connects_array)
 
 for i in range(0, i):
     try:
         database_uri = db_connects_array[i]['connect_url']
         customer_name1 = db_connects_array[i]['customer_name']
+        print(customer_name1)
+        print(database_uri)
         env_name1 = db_connects_array[i]['env_name']
 
         if env_name1.find('/') != -1:
