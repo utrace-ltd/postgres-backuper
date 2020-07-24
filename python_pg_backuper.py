@@ -23,6 +23,15 @@ AWS_BUCKET_NAME = os.environ.get('AWS_BUCKET_NAME')
 AWS_STORAGE_URL = os.environ.get('AWS_STORAGE_URL')
 AWS_AUTH_REGION_NAME = os.environ.get('AWS_AUTH_REGION_NAME')
 
+logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
+                    level=logging.INFO)
+
+if os.path.exists("/tmp/backup"):
+    logging.info("Folder for backups already exist. Skip.")
+else:
+    os.mkdir("/tmp/backup")
+    logging.info("Folder for backups created.")
+
 # Connect to vault and getting connect url
 client = hvac.Client(
     url=VAULT_ADDR,
@@ -55,9 +64,6 @@ bucket = conn.get_bucket(AWS_BUCKET_NAME)
 k = Key(bucket)
 
 # Logging params
-
-logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
-                    level=logging.INFO)
 
 connect_true = client.is_authenticated()
 
@@ -137,15 +143,12 @@ for kv in secret_list:
                                 customer_name + " in environment " + env_name)
     except:
         logging.warning("Path not found " + customer_name)
-print(db_connects_array)
 i = len(db_connects_array)
 
 for i in range(0, i):
     try:
         database_uri = db_connects_array[i]['connect_url']
         customer_name1 = db_connects_array[i]['customer_name']
-        print(customer_name1)
-        print(database_uri)
         env_name1 = db_connects_array[i]['env_name']
 
         if env_name1.find('/') != -1:
@@ -154,7 +157,7 @@ for i in range(0, i):
         now = date.today()
         FILENAME_PREFIX = ('backup' + "_" + customer_name1 + "_" + env_name1)
         filename = (FILENAME_PREFIX + "_" + str(now) + ".sql.gz")
-        BACKUP_PATH = r'/tmp'
+        BACKUP_PATH = r'/tmp/backup'
         destination = r'%s/%s' % (BACKUP_PATH, str(filename))
 
         logging.info('Starting backup for ' +
@@ -173,4 +176,11 @@ for i in range(0, i):
                      customer_name1 + "-" + env_name1)
     except:
         logging.warning('Exception. Backup skipped')
+
+if os.path.exists("/tmp/backup"):
+    os.rmdir("/tmp/backup")
+    logging.info("Folder for backups deleted.")
+else:
+    logging.warning("Folder for backups not found.")
+
 logging.info('Backups completed')
