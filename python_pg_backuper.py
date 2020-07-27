@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import subprocess
+import shutil
 from datetime import date
 
 import hvac
@@ -29,7 +30,7 @@ logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
 if os.path.exists("/tmp/backup"):
     logging.info("Folder for backups already exist. Skip.")
 else:
-    os.mkdir("/tmp/backup")
+    shutil.rmtree("/tmp/backup/")
     logging.info("Folder for backups created.")
 
 # Connect to vault and getting connect url
@@ -178,7 +179,7 @@ for i in range(0, i):
         logging.warning('Exception. Backup skipped')
 
 if os.path.exists("/tmp/backup"):
-    os.rmdir("/tmp/backup")
+    shutil.rmtree("/tmp/backup/")
     logging.info("Folder for backups deleted.")
 else:
     logging.warning("Folder for backups not found.")
