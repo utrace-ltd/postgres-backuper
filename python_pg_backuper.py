@@ -30,7 +30,7 @@ logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
 if os.path.exists("/tmp/backup"):
     logging.info("Folder for backups already exist. Skip.")
 else:
-    shutil.rmtree("/tmp/backup/")
+    os.mkdir("/tmp/backup")
     logging.info("Folder for backups created.")
 
 # Connect to vault and getting connect url
