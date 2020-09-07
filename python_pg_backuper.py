@@ -168,7 +168,7 @@ for i in range(0, i):
              '-c', '-O', '-f', destination],
             stdout=subprocess.PIPE)
         output = ps.communicate()[0]
-        logging.warning('Info: Upload ' + filename + ' to ' +
+        logging.warning('Upload ' + filename + ' to ' +
                         customer_name1 + "-" + env_name1 + "/" + filename)
         k.key = (customer_name1 + "/" + env_name1 + "/" + filename)
         k.set_contents_from_filename(destination)
