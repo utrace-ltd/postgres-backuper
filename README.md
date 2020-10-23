@@ -12,7 +12,7 @@
 
 #### ENV PATH_TO_SECRETS2='your_path_to_secrets'
 
-ENV PATH_TO_SECRETS2='your_path_to_secrets'
+#### ENV PATH_TO_SECRETS3='your_path_to_secrets'
 
 #### ENV AWS_ACCESS_KEY_ID='your_access_key_for_aws'
 
