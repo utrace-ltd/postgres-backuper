@@ -6,7 +6,9 @@
 
 #### ENV VAULT_ADDR='https://vault.example.com'
 
-#### ENV VAULT_SECRET='your_vault_secret'
+#### ENV VAULT_LOGIN='your_vault_login'
+
+#### ENV VAULT_PASSWORD='your_vault_password'
 
 #### ENV PATH_TO_SECRETS='your_path_to_secrets'
 
