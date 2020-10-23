@@ -13,16 +13,18 @@ from boto.s3.key import Key
 
 # Vault variables
 VAULT_ADDR = os.environ.get("VAULT_ADDR")
-VAULT_SECRET = os.environ.get("VAULT_SECRET")
-PATH_TO_SECRETS = os.environ.get('PATH_TO_SECRETS')
-PATH_TO_SECRETS2 = os.environ.get('PATH_TO_SECRETS2')
+VAULT_LOGIN = os.environ.get("VAULT_LOGIN")
+VAULT_PASSWORD = os.environ.get("VAULT_PASSWORD")
+PATH_TO_SECRETS = os.environ.get("PATH_TO_SECRETS")
+PATH_TO_SECRETS2 = os.environ.get("PATH_TO_SECRETS2")
+PATH_TO_SECRETS3 = os.environ.get("PATH_TO_SECRETS3")
 
 # Yandex S3 settings.
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_BUCKET_NAME = os.environ.get('AWS_BUCKET_NAME')
-AWS_STORAGE_URL = os.environ.get('AWS_STORAGE_URL')
-AWS_AUTH_REGION_NAME = os.environ.get('AWS_AUTH_REGION_NAME')
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+AWS_BUCKET_NAME = os.environ.get("AWS_BUCKET_NAME")
+AWS_STORAGE_URL = os.environ.get("AWS_STORAGE_URL")
+AWS_AUTH_REGION_NAME = os.environ.get("AWS_AUTH_REGION_NAME")
 
 logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
                     level=logging.INFO)
@@ -35,22 +37,10 @@ else:
 
 # Connect to vault and getting connect url
 client = hvac.Client(
-    url=VAULT_ADDR,
-    token=VAULT_SECRET
+    url=VAULT_ADDR
 )
 
-print()
-
-try:
-    client.renew_token(increment=60 * 60 * 72)
-except hvac.exceptions.InvalidRequest as _:
-    # Swallow, as this is probably a root token
-    pass
-except hvac.exceptions.Forbidden as _:
-    # Swallow, as this is probably a root token
-    pass
-except Exception as e:
-    exit(e)
+client.auth_userpass(VAULT_LOGIN, VAULT_PASSWORD)
 
 conn = S3Connection(
     host=AWS_STORAGE_URL,
@@ -64,11 +54,9 @@ bucket = conn.get_bucket(AWS_BUCKET_NAME)
 
 k = Key(bucket)
 
-# Logging params
-
 connect_true = client.is_authenticated()
 
-if connect_true:
+if connect_true == True:
     logging.info("Connected. Client authenticated.")
 else:
     logging.warning("Not connected or client not authenticated.")
@@ -89,92 +77,77 @@ for kv in secret_list:
 
     if customer_name.find('/') != -1:
         customer_name = customer_name[:-1]
+    def loop_secrets(path_to_secret):
+        try:
+            env_list = client.secrets.kv.v2.list_secrets(
+                path=path_to_secret, mount_point=customer_name + '/')
+            for env_name in env_list['data']['keys']:
+                try:
+                    vault_secret = client.secrets.kv.v2.read_secret_version(
+                        path=path_to_secret + env_name + '/database',
+                        mount_point=customer_name + '/'
+                    )
 
-    try:
-        env_list = client.secrets.kv.v2.list_secrets(
-            path=PATH_TO_SECRETS, mount_point=customer_name + '/')
-        for env_name in env_list['data']['keys']:
-            try:
-                vault_secret = client.secrets.kv.v2.read_secret_version(
-                    path=PATH_TO_SECRETS + env_name + '/database',
-                    mount_point=customer_name + '/'
-                )
+                    rg = re.compile('utrace/|/')
 
-                key_exists = '.skip_database_backup' in vault_secret['data']['data']
+                    env_name1 = rg.sub('', path_to_secret)
 
-                u = vault_secret['data']['data']['connect_url']
+                    key_exists = '.skip_database_backup' in vault_secret['data']['data']
 
-                rgx = re.compile(
-                    'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require|&targetServerType=master'
-                )
-                connect_url = rgx.sub('', u)
+                    u = vault_secret['data']['data']['connect_url']
 
-                if not key_exists:
-                    db_connects_array.append(
-                        {'customer_name': customer_name, 'env_name': env_name, 'connect_url': connect_url})
-            except:
-                logging.warning("Database param not found for " +
-                                customer_name + " in environment " + env_name)
-    except:
-        logging.warning("Path not found " + customer_name)
-    try:
-        env_list2 = client.secrets.kv.v2.list_secrets(
-            path=PATH_TO_SECRETS2, mount_point=customer_name + '/')
-        for env_name in env_list2['data']['keys']:
-            try:
-                vault_secret2 = client.secrets.kv.v2.read_secret_version(
-                    path=PATH_TO_SECRETS2 + env_name + '/database',
-                    mount_point=customer_name + '/'
-                )
+                    rgx = re.compile(
+                        'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require|&targetServerType=master'
+                    )
+                    connect_url = rgx.sub('', u)
 
-                key_exists = '.skip_database_backup' in vault_secret2['data']['data']
+                    if not key_exists:
+                        db_connects_array.append(
+                            {'customer_name': customer_name, 'env_name': env_name, 'env_name1': env_name1, 'connect_url': connect_url})
+                except:
+                    logging.warning("Database param not found for " +
+                                    customer_name + " in environment " + env_name)
+        except:
+            logging.warning("Path not found " + customer_name)
+            
+    loop_secrets(PATH_TO_SECRETS)
 
-                ur = vault_secret2['data']['data']['connect_url']
+    loop_secrets(PATH_TO_SECRETS2)
 
-                rgx = re.compile(
-                    'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require|&targetServerType=master'
-                )
-                connect_url = rgx.sub('', ur)
+    loop_secrets(PATH_TO_SECRETS3)
 
-                if not key_exists:
-                    db_connects_array.append(
-                        {'customer_name': customer_name, 'env_name': env_name, 'connect_url': connect_url})
-            except:
-                logging.warning("Database param not found for " +
-                                customer_name + " in environment " + env_name)
-    except:
-        logging.warning("Path not found " + customer_name)
 i = len(db_connects_array)
 
 for i in range(0, i):
     try:
         database_uri = db_connects_array[i]['connect_url']
-        customer_name1 = db_connects_array[i]['customer_name']
-        env_name1 = db_connects_array[i]['env_name']
-
-        if env_name1.find('/') != -1:
-            env_name1 = env_name1[:-1]
+        customer_name = db_connects_array[i]['customer_name']
+        env_name = db_connects_array[i]['env_name']
+        env_name1 = db_connects_array[i]['env_name1']
+        if env_name.find('/') != -1:
+            env_name = env_name[:-1]
 
         now = date.today()
-        FILENAME_PREFIX = ('backup' + "_" + customer_name1 + "_" + env_name1)
+        FILENAME_PREFIX = ('backup' + "_" + customer_name + "_" + env_name)
         filename = (FILENAME_PREFIX + "_" + str(now) + ".sql.gz")
         BACKUP_PATH = r'/tmp/backup'
         destination = r'%s/%s' % (BACKUP_PATH, str(filename))
 
         logging.info('Starting backup for ' +
-                     customer_name1 + "-" + env_name1 + "/" + filename)
+                     customer_name + "/" + env_name1 + "/" + env_name + "/" + filename)
         ps = subprocess.Popen(
             ['pg_dump', database_uri, '--compress=9',
              '-c', '-O', '-f', destination],
             stdout=subprocess.PIPE)
         output = ps.communicate()[0]
-        logging.warning('Upload ' + filename + ' to ' +
-                        customer_name1 + "-" + env_name1 + "/" + filename)
-        k.key = (customer_name1 + "/" + env_name1 + "/" + filename)
+        logging.warning('Info: Upload ' + filename + ' to ' +
+                        customer_name + "/" + env_name1 + "/" + env_name + "/" + filename)
+        k.key = (customer_name + "/" + env_name1 +
+                 "/" + env_name + "/" + filename)
         k.set_contents_from_filename(destination)
         os.remove(destination)
         logging.info('Backup completed for ' +
-                     customer_name1 + "-" + env_name1)
+                     customer_name + "-" + env_name1 + "-" + env_name)
     except:
         logging.warning('Exception. Backup skipped')
 
