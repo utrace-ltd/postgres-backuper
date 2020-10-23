@@ -12,9 +12,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY python_pg_backuper.py ./
 
 ENV VAULT_ADDR='https://vault.example.com'
-ENV VAULT_SECRET='your_vault_secret'
+ENV VAULT_LOGIN='your_vault_login'
+ENV VAULT_PASSWORD='your_vault_password'
 ENV PATH_TO_SECRETS='your_path_to_secrets'
 ENV PATH_TO_SECRETS2='your_path_to_secrets'
+ENV PATH_TO_SECRETS3='your_path_to_secrets'
 ENV AWS_ACCESS_KEY_ID='your_access_key_for_aws'
 ENV AWS_SECRET_ACCESS_KEY='your_secret_access_key_for_aws'
 ENV AWS_BUCKET_NAME='your_aws_bucket_name'
