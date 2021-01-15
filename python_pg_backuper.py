@@ -19,7 +19,7 @@ PATH_TO_SECRETS = os.environ.get("PATH_TO_SECRETS")
 PATH_TO_SECRETS2 = os.environ.get("PATH_TO_SECRETS2")
 PATH_TO_SECRETS3 = os.environ.get("PATH_TO_SECRETS3")
 
-# Yandex S3 settings.
+# Yandex S3 settings
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_BUCKET_NAME = os.environ.get("AWS_BUCKET_NAME")
@@ -77,6 +77,7 @@ for kv in secret_list:
 
     if customer_name.find('/') != -1:
         customer_name = customer_name[:-1]
+
     def loop_secrets(path_to_secret):
         try:
             env_list = client.secrets.kv.v2.list_secrets(
@@ -94,22 +95,26 @@ for kv in secret_list:
 
                     key_exists = '.skip_database_backup' in vault_secret['data']['data']
 
-                    u = vault_secret['data']['data']['connect_url']
+                    jdbc_str = vault_secret['data']['data']['connect_url']
+                    jdbc_pattern = 'postgresql://(.*?):(\d*)/(.*)\?user=(.*)\&password=(.*)\&ssl=true'
 
-                    rgx = re.compile(
-                        'jdbc:|&sslfactory=org.postgresql.ssl.NonValidatingFactory&sslmode=require|&targetServerType=master'
-                    )
-                    connect_url = rgx.sub('', u)
+                    (j_host, j_port, j_dbname, j_username, j_password) = re.compile(
+                        jdbc_pattern).findall(jdbc_str)[0]
+
+                    clear_conn_sring = 'postgresql://' + j_host + ':' + j_port + '/' + \
+                        j_dbname + '?user=' + j_username + '&password=' + j_password + '&ssl=true'
+
+                    print(clear_conn_sring)
 
                     if not key_exists:
                         db_connects_array.append(
-                            {'customer_name': customer_name, 'env_name': env_name, 'env_name1': env_name1, 'connect_url': connect_url})
+                            {'customer_name': customer_name, 'env_name': env_name, 'env_name1': env_name1, 'connect_url': clear_conn_sring})
                 except:
                     logging.warning("Database param not found for " +
                                     customer_name + " in environment " + env_name)
         except:
             logging.warning("Path not found " + customer_name)
-            
+
     loop_secrets(PATH_TO_SECRETS)
 
     loop_secrets(PATH_TO_SECRETS2)
