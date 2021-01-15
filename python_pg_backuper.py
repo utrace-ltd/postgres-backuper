@@ -104,8 +104,6 @@ for kv in secret_list:
                     clear_conn_sring = 'postgresql://' + j_host + ':' + j_port + '/' + \
                         j_dbname + '?user=' + j_username + '&password=' + j_password + '&ssl=true'
 
-                    print(clear_conn_sring)
-
                     if not key_exists:
                         db_connects_array.append(
                             {'customer_name': customer_name, 'env_name': env_name, 'env_name1': env_name1, 'connect_url': clear_conn_sring})
