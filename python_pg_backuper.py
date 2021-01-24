@@ -147,8 +147,7 @@ for i in range(0, i):
         logging.warning('Info: Upload ' + filename +
                         ' to ' + filepath + filename)
 
-        s3.upload_file(filepath + filename,
-                       AWS_BUCKET_NAME, filepath + filename)
+        s3.upload_file(destination, AWS_BUCKET_NAME, filepath + filename)
 
         os.remove(destination)
 
