@@ -24,7 +24,6 @@ AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_BUCKET_NAME = os.environ.get("AWS_BUCKET_NAME")
 AWS_STORAGE_URL = os.environ.get("AWS_STORAGE_URL")
-AWS_AUTH_REGION_NAME = os.environ.get("AWS_AUTH_REGION_NAME")
 
 logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
                     level=logging.INFO)
@@ -45,7 +44,7 @@ client.auth_userpass(VAULT_LOGIN, VAULT_PASSWORD)
 session = boto3.session.Session()
 s3 = session.client(
     service_name='s3',
-    endpoint_url='https://storage.yandexcloud.net',
+    endpoint_url=AWS_STORAGE_URL,
     aws_access_key_id=AWS_ACCESS_KEY_ID,
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
 )
@@ -115,6 +114,8 @@ for kv in secret_list:
     loop_secrets(PATH_TO_SECRETS2)
 
     loop_secrets(PATH_TO_SECRETS3)
+
+    loop_secrets(PATH_TO_SECRETS4)
 
 i = len(db_connects_array)
 
