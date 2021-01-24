@@ -8,8 +8,7 @@ import shutil
 from datetime import date
 
 import hvac
-from boto.s3.connection import S3Connection
-from boto.s3.key import Key
+import boto3
 
 # Vault variables
 VAULT_ADDR = os.environ.get("VAULT_ADDR")
@@ -18,6 +17,7 @@ VAULT_PASSWORD = os.environ.get("VAULT_PASSWORD")
 PATH_TO_SECRETS = os.environ.get("PATH_TO_SECRETS")
 PATH_TO_SECRETS2 = os.environ.get("PATH_TO_SECRETS2")
 PATH_TO_SECRETS3 = os.environ.get("PATH_TO_SECRETS3")
+PATH_TO_SECRETS4 = os.environ.get("PATH_TO_SECRETS4")
 
 # Yandex S3 settings
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
@@ -42,17 +42,13 @@ client = hvac.Client(
 
 client.auth_userpass(VAULT_LOGIN, VAULT_PASSWORD)
 
-conn = S3Connection(
-    host=AWS_STORAGE_URL,
+session = boto3.session.Session()
+s3 = session.client(
+    service_name='s3',
+    endpoint_url='https://storage.yandexcloud.net',
     aws_access_key_id=AWS_ACCESS_KEY_ID,
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
 )
-
-conn.auth_region_name = AWS_AUTH_REGION_NAME
-
-bucket = conn.get_bucket(AWS_BUCKET_NAME)
-
-k = Key(bucket)
 
 connect_true = client.is_authenticated()
 
@@ -96,6 +92,7 @@ for kv in secret_list:
                     key_exists = '.skip_database_backup' in vault_secret['data']['data']
 
                     jdbc_str = vault_secret['data']['data']['connect_url']
+
                     jdbc_pattern = 'postgresql://(.*?):(\d*)/(.*)\?user=(.*)\&password=(.*)\&ssl=true'
 
                     (j_host, j_port, j_dbname, j_username, j_password) = re.compile(
@@ -136,21 +133,27 @@ for i in range(0, i):
         BACKUP_PATH = r'/tmp/backup'
         destination = r'%s/%s' % (BACKUP_PATH, str(filename))
 
-        logging.info('Starting backup for ' +
-                     customer_name + "/" + env_name1 + "/" + env_name + "/" + filename)
+        filepath = customer_name + "/" + env_name1 + "/" + env_name + "/"
+
+        logging.info('Starting backup for ' + filepath + filename)
+
         ps = subprocess.Popen(
             ['pg_dump', database_uri, '--compress=9',
              '-c', '-O', '-f', destination],
             stdout=subprocess.PIPE)
         output = ps.communicate()[0]
-        logging.warning('Info: Upload ' + filename + ' to ' +
-                        customer_name + "/" + env_name1 + "/" + env_name + "/" + filename)
-        k.key = (customer_name + "/" + env_name1 +
-                 "/" + env_name + "/" + filename)
-        k.set_contents_from_filename(destination)
+
+        logging.warning('Info: Upload ' + filename +
+                        ' to ' + filepath + filename)
+
+        s3.upload_file(filepath + filename,
+                       AWS_BUCKET_NAME, filepath + filename)
+
         os.remove(destination)
-        logging.info('Backup completed for ' +
+
+        logging.info('Backup and upload completed for ' +
                      customer_name + "-" + env_name1 + "-" + env_name)
+
     except:
         logging.warning('Exception. Backup skipped')
 
