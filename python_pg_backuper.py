@@ -5,7 +5,7 @@ import os
 import re
 import subprocess
 import shutil
-from datetime import date
+from datetime import date, datetime
 
 import hvac
 import boto3
@@ -25,13 +25,15 @@ AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_BUCKET_NAME = os.environ.get("AWS_BUCKET_NAME")
 AWS_STORAGE_URL = os.environ.get("AWS_STORAGE_URL")
 
+BACKUP_PATH = r'/tmp/backup'
+
 logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
                     level=logging.INFO)
 
-if os.path.exists("/tmp/backup"):
+if os.path.exists(BACKUP_PATH):
     logging.info("Folder for backups already exist. Skip.")
 else:
-    os.mkdir("/tmp/backup")
+    os.mkdir(BACKUP_PATH)
     logging.info("Folder for backups created.")
 
 # Connect to vault and getting connect url
@@ -128,10 +130,12 @@ for i in range(0, i):
         if env_name.find('/') != -1:
             env_name = env_name[:-1]
 
-        now = date.today()
+        now = datetime.now()
+        time_format = "%d-%m-%Y_%H-%M-%S"
+        current_time = now.strftime(time_format)
+
         FILENAME_PREFIX = ('backup' + "_" + customer_name + "_" + env_name)
-        filename = (FILENAME_PREFIX + "_" + str(now) + ".sql.gz")
-        BACKUP_PATH = r'/tmp/backup'
+        filename = (FILENAME_PREFIX + "_" + str(current_time) + ".sql.gz")
         destination = r'%s/%s' % (BACKUP_PATH, str(filename))
 
         filepath = customer_name + "/" + env_name1 + "/" + env_name + "/"
@@ -144,7 +148,7 @@ for i in range(0, i):
             stdout=subprocess.PIPE)
         output = ps.communicate()[0]
 
-        logging.warning('Info: Upload ' + filename +
+        logging.warning('Upload ' + filename +
                         ' to ' + filepath + filename)
 
         s3.upload_file(destination, AWS_BUCKET_NAME, filepath + filename)
@@ -157,8 +161,8 @@ for i in range(0, i):
     except:
         logging.warning('Exception. Backup skipped')
 
-if os.path.exists("/tmp/backup"):
-    shutil.rmtree("/tmp/backup/")
+if os.path.exists(BACKUP_PATH):
+    shutil.rmtree(BACKUP_PATH)
     logging.info("Folder for backups deleted.")
 else:
     logging.warning("Folder for backups not found.")
