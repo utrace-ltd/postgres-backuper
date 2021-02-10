@@ -18,6 +18,8 @@
 
 #### ENV PATH_TO_SECRETS4='your_path_to_secrets'
 
+#### ENV BACKUP_ONLY='prod_or_other_or_all'
+
 #### ENV AWS_ACCESS_KEY_ID='your_access_key_for_aws'
 
 #### ENV AWS_SECRET_ACCESS_KEY='your_secret_access_key_for_aws'

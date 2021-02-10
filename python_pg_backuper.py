@@ -5,8 +5,8 @@ import os
 import re
 import subprocess
 import shutil
-from datetime import date, datetime
-
+from datetime import datetime
+import copy
 import hvac
 import boto3
 
@@ -25,7 +25,9 @@ AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_BUCKET_NAME = os.environ.get("AWS_BUCKET_NAME")
 AWS_STORAGE_URL = os.environ.get("AWS_STORAGE_URL")
 
+BACKUP_ONLY = os.environ.get("BACKUP_ONLY") #Please indicate 'prod' for backup the prod database or 'other' for the rest. Or 'all' for all databases.
 BACKUP_PATH = r'/tmp/backup'
+
 
 logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s]  %(message)s',
                     level=logging.INFO)
@@ -62,6 +64,9 @@ secrets_engines_list = client.sys.list_mounted_secrets_engines()
 secret_list = sorted(secrets_engines_list.keys())
 
 db_connects_array = []
+db_connects_prod = []
+db_connects_other = []
+db_connects = []
 
 for kv in secret_list:
     rgxMount = re.compile(
@@ -122,11 +127,34 @@ for kv in secret_list:
 i = len(db_connects_array)
 
 for i in range(0, i):
+    database_uri = db_connects_array[i]['connect_url']
+    customer_name = db_connects_array[i]['customer_name']
+    env_name = db_connects_array[i]['env_name']
+    env_name1 = db_connects_array[i]['env_name1']
+    if env_name == 'prod/':
+        db_connects_prod.append(
+            {'customer_name': customer_name, 'env_name': env_name, 'env_name1': env_name1, 'connect_url': database_uri})
+    elif env_name == 'test/' or 'stage/':
+        db_connects_other.append(
+            {'customer_name': customer_name, 'env_name': env_name, 'env_name1': env_name1, 'connect_url': database_uri})
+
+if BACKUP_ONLY == 'prod' or BACKUP_ONLY == 'Prod':
+    db_connects = copy.deepcopy(db_connects_prod)
+elif BACKUP_ONLY == 'other' or BACKUP_ONLY == 'Other':
+    db_connects = copy.deepcopy(db_connects_other)
+elif BACKUP_ONLY == 'all' or BACKUP_ONLY == 'All':
+    db_connects = copy.deepcopy(db_connects_array)
+else:
+    logging.warning("Invalid value for BACKUP_ONLY variable. Please indicate 'prod' for backing up the prod database or 'other' for the rest. Or 'all' for all databases.")
+
+it = len(db_connects)
+
+for it in range(0, it):
     try:
-        database_uri = db_connects_array[i]['connect_url']
-        customer_name = db_connects_array[i]['customer_name']
-        env_name = db_connects_array[i]['env_name']
-        env_name1 = db_connects_array[i]['env_name1']
+        database_uri = db_connects[it]['connect_url']
+        customer_name = db_connects[it]['customer_name']
+        env_name = db_connects[it]['env_name']
+        env_name1 = db_connects[it]['env_name1']
         if env_name.find('/') != -1:
             env_name = env_name[:-1]
 
@@ -167,4 +195,4 @@ if os.path.exists(BACKUP_PATH):
 else:
     logging.warning("Folder for backups not found.")
 
-logging.info('Backups completed')
+logging.info('Backups completed.')
