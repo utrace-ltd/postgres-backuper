@@ -23,4 +23,4 @@ ENV AWS_SECRET_ACCESS_KEY='your_secret_access_key_for_aws'
 ENV AWS_BUCKET_NAME='your_aws_bucket_name'
 ENV AWS_STORAGE_URL='s3-storage.example.com'
 
-CMD [ "python", "python_pg_backuper.py" ]
+CMD [ "python3", "python_pg_backuper.py" ]
