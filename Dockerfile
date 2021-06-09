@@ -1,13 +1,12 @@
-FROM python:3
+FROM alpine:latest
 
 WORKDIR /opt/python_backuper
 
-RUN python -m pip install --upgrade pip
-RUN apt update && apt install -y postgresql-client
+RUN apk --no-cache add postgresql-client python3 py3-pip
 
 COPY requirements.txt ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY python_pg_backuper.py ./
 
